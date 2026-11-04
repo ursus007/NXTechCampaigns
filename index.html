@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Creador de Campañas Callbot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f3ef;
+    --surface: #ffffff;
+    --surface-2: #faf9f6;
+    --border: #e3dfd6;
+    --text: #1f2328;
+    --muted: #68707a;
+    --accent: #2f55d4;
+    --accent-weak: #e8edfc;
+    --accent-text: #ffffff;
+    --ok: #1d7a4c;
+    --ok-weak: #e4f3ea;
+    --warn: #9a5b00;
+    --warn-weak: #fdf1dc;
+    --err: #b42318;
+    --err-weak: #fde8e6;
+    --shadow: 0 1px 2px rgba(20, 20, 20, .04), 0 4px 16px rgba(20, 20, 20, .04);
+    --radius: 12px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181b; --surface: #1f2125; --surface-2: #25282d; --border: #33373e;
+      --text: #e8e9eb; --muted: #9aa1ab; --accent: #7b9cff; --accent-weak: #262f4d; --accent-text: #0f1320;
+      --ok: #5fcf95; --ok-weak: #1d3a2b; --warn: #f0b75e; --warn-weak: #3d301a; --err: #ff8a80; --err-weak: #432320;
+      --shadow: none; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17181b; --surface: #1f2125; --surface-2: #25282d; --border: #33373e;
+    --text: #e8e9eb; --muted: #9aa1ab; --accent: #7b9cff; --accent-weak: #262f4d; --accent-text: #0f1320;
+    --ok: #5fcf95; --ok-weak: #1d3a2b; --warn: #f0b75e; --warn-weak: #3d301a; --err: #ff8a80; --err-weak: #432320;
+    --shadow: none; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 "IBM Plex Sans", system-ui, sans-serif;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 28px 16px 80px; }
+  header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; flex-wrap: wrap; }
+  header.top h1 { font-size: 22px; margin: 0; font-weight: 700; letter-spacing: -.01em; }
+  header.top p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 13px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .pill.ok { color: var(--ok); background: var(--ok-weak); border-color: transparent; } .pill.ok .dot { background: var(--ok); }
+  .pill.err { color: var(--err); background: var(--err-weak); border-color: transparent; } .pill.err .dot { background: var(--err); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 16px; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
+  .card h2 .n { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-weak); color: var(--accent); font-size: 13px; font-weight: 700; }
+  .card .sub { color: var(--muted); font-size: 13.5px; margin: 0 0 16px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .grid.two { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  label.f { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 500; }
+  label.f .hint { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .req::after { content: " *"; color: var(--err); }
+  input[type=text], input[type=number], input[type=password], input[type=url], input[type=datetime-local], select, textarea {
+    width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text); font: inherit; font-size: 14px;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .checks { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chk { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); font-size: 13.5px; cursor: pointer; user-select: none; }
+  .chk input { accent-color: var(--accent); margin: 0; }
+  .chk small { color: var(--muted); }
+
+  button { font: inherit; font-size: 14px; font-weight: 600; border-radius: 8px; padding: 9px 16px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  button:hover { background: var(--surface-2); }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button.primary:hover { filter: brightness(1.06); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.big { padding: 12px 22px; font-size: 15px; }
+
+  .drop { border: 2px dashed var(--border); border-radius: var(--radius); padding: 26px; text-align: center; background: var(--surface-2); cursor: pointer; transition: border-color .15s, background .15s; }
+  .drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-weak); }
+  .drop strong { display: block; font-size: 15px; margin-bottom: 4px; }
+  .drop span { color: var(--muted); font-size: 13px; }
+
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
+  .stat { padding: 10px 14px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); min-width: 110px; }
+  .stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .stat.ok b { color: var(--ok); } .stat.err b { color: var(--err); } .stat.warn b { color: var(--warn); }
+
+  .tablewrap { overflow: auto; max-height: 360px; border: 1px solid var(--border); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  th { position: sticky; top: 0; background: var(--surface-2); font-weight: 600; z-index: 1; }
+  tr.bad td { background: var(--err-weak); }
+  td.mono, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px; }
+
+  .map { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 6px; }
+  .params { margin-top: 14px; }
+  .params .chk input[type=text] { width: 150px; padding: 4px 7px; font-size: 13px; }
+
+  .alert { padding: 11px 14px; border-radius: 10px; font-size: 13.5px; margin: 10px 0; border: 1px solid transparent; }
+  .alert.warn { background: var(--warn-weak); color: var(--warn); }
+  .alert.err { background: var(--err-weak); color: var(--err); }
+  .alert.ok { background: var(--ok-weak); color: var(--ok); }
+  .alert.info { background: var(--accent-weak); color: var(--accent); }
+
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
+  pre { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; overflow: auto; max-height: 340px; font: 12.5px/1.45 "IBM Plex Mono", ui-monospace, monospace; }
+  .hidden { display: none !important; }
+  .actions { display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+  .muted { color: var(--muted); }
+  .spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; display: inline-block; animation: sp .7s linear infinite; vertical-align: -3px; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  @media (max-width: 600px) { .card { padding: 16px; } header.top h1 { font-size: 19px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>Creador de Campañas Callbot</h1>
+      <p>Sube un Excel, configura la tarea y créala en NXCLOUD a través del worker.</p>
+    </div>
+    <span id="connPill" class="pill"><span class="dot"></span><span id="connText">Sin conectar</span></span>
+  </header>
+
+  <!-- 1. Conexión -->
+  <section class="card">
+    <h2><span class="n">1</span>Conexión</h2>
+    <p class="sub">El secret de firma vive en el worker. Aquí solo va tu token de acceso.</p>
+    <div class="grid two">
+      <label class="f"><span class="req">URL del worker</span>
+        <input id="workerUrl" type="url" value="https://webhook-nxtech.ursus006.workers.dev">
+      </label>
+      <label class="f"><span class="req">Token (VIEW_TOKEN)</span>
+        <input id="token" type="password" autocomplete="off" placeholder="••••••••">
+      </label>
+    </div>
+    <div class="row" style="margin-top:12px; justify-content:space-between">
+      <label class="chk"><input id="remember" type="checkbox"> Recordar en este navegador</label>
+      <button id="btnTest">Probar conexión</button>
+    </div>
+  </section>
+
+  <!-- 2. Campaña -->
+  <section class="card">
+    <h2><span class="n">2</span>Campaña</h2>
+    <p class="sub">Campos de <span class="mono">createAndCall</span>. Los que dejes vacíos y sean opcionales no se envían.</p>
+    <div class="grid">
+      <label class="f"><span class="req">Nombre de la tarea</span><input id="taskName" type="text" placeholder="Cobranza Nov - Tramo 1"></label>
+      <label class="f"><span class="req">Scene ID</span><input id="sceneID" type="text" placeholder="xlj8u2p1273o"><span class="hint">Gestión de escenarios → ID de plantilla</span></label>
+      <label class="f"><span class="req">Estrategia de marcado</span><input id="strategyName" type="text" value="one-round call"><span class="hint">Nombre de la estrategia en la plataforma</span></label>
+      <label class="f">User Task ID<input id="userTaskID" type="text"><span class="hint">Único por tarea. Se genera solo.</span></label>
+      <label class="f"><span class="req">Inicio</span>
+        <select id="startupType">
+          <option value="1">1 · Manual</option>
+          <option value="2">2 · Programado</option>
+          <option value="3">3 · Inmediato</option>
+        </select>
+      </label>
+      <label class="f hidden" id="startupAtWrap"><span class="req">Fecha/hora de inicio</span><input id="startupAt" type="datetime-local"><span class="hint">Se envía como timestamp en segundos</span></label>
+      <label class="f"><span class="req">Zona horaria</span>
+        <select id="zoneSecond">
+          <option value="-18000" selected>UTC-5 · Lima / Bogotá</option>
+          <option value="-14400">UTC-4 · Santiago / Caracas</option>
+          <option value="-10800">UTC-3 · Buenos Aires / São Paulo</option>
+          <option value="-21600">UTC-6 · México</option>
+          <option value="0">UTC</option>
+          <option value="28800">UTC+8 · China</option>
+        </select>
+      </label>
+      <label class="f"><span class="req">Concurrencia máx.</span><input id="maxCall" type="number" min="1" value="40"></label>
+      <label class="f">Timbrado máx. (s)<input id="maxRingTime" type="number" min="1" placeholder="opcional"></label>
+      <label class="f">Route ID<input id="routeID" type="text" placeholder="opcional"></label>
+      <label class="f">Other (transparente)<input id="other" type="text" value="trans"></label>
+    </div>
+
+    <h2 style="margin-top:22px; font-size:14px">Horario de marcado</h2>
+    <div class="checks" id="days" style="margin:8px 0 12px"></div>
+    <div class="grid">
+      <label class="f">Desde<select id="hourFrom"></select></label>
+      <label class="f">Hasta<select id="hourTo"></select></label>
+    </div>
+    <p class="muted" style="font-size:12.5px; margin:8px 0 0">Se convierte a <span class="mono">dialAtUpHour</span> (primera media hora) y <span class="mono">dialAtDownHour</span> (segunda media hora).</p>
+
+    <h2 style="margin-top:22px; font-size:14px">
+      <label class="chk" style="padding:4px 10px"><input id="useAicc" type="checkbox" checked> Transferir a agentes (AICC)</label>
+    </h2>
+    <div class="grid" id="aiccBox" style="margin-top:10px">
+      <label class="f"><span class="req">Grupo de agentes</span><input id="agentGroup" type="text" value="1"></label>
+      <label class="f"><span class="req">Tipo de marcado</span>
+        <select id="dispatchType">
+          <option value="0">0 · Ninguno</option>
+          <option value="1">1 · Por ratio</option>
+          <option value="3" selected>3 · Predictivo 2.0</option>
+        </select>
+      </label>
+      <label class="f">Ratio por agente<input id="ratioCallRate" type="number" step="0.1" value="3"><span class="hint">Para marcado por ratio</span></label>
+      <label class="f">Ratio predictivo<input id="predictCallRate" type="number" step="0.1" value="1"><span class="hint">Para predictivo</span></label>
+    </div>
+
+    <h2 style="margin-top:22px; font-size:14px">Opciones</h2>
+    <div class="checks" style="margin-top:8px">
+      <label class="chk"><input id="roundRedial" type="checkbox" checked> Rellamar no contestadas <small>roundRedial</small></label>
+      <label class="chk"><input id="wholeTTS" type="checkbox"> TTS completo <small>wholeTTS</small></label>
+      <label class="chk"><input id="taskKeep" type="checkbox"> Mantener tarea abierta <small>taskKeep</small></label>
+      <label class="chk"><input id="phoneEncrypt" type="checkbox"> Encriptar números <small>phoneEncrypt</small></label>
+    </div>
+    <div id="ttsWarn" class="alert warn hidden">El Excel trae variables y <b>wholeTTS</b> está desactivado. La documentación indica que debe estar en <b>true</b> cuando el script usa variables.</div>
+  </section>
+
+  <!-- 3. Lista -->
+  <section class="card">
+    <h2><span class="n">3</span>Lista de contactos</h2>
+    <p class="sub">Excel o CSV con encabezados en la primera fila. Las columnas que no sean teléfono/nombre se pueden enviar como variables del script.</p>
+
+    <div class="drop" id="drop">
+      <strong>Arrastra tu Excel aquí o haz clic</strong>
+      <span>.xlsx · .xls · .csv</span>
+      <input id="file" type="file" accept=".xlsx,.xls,.csv" class="hidden">
+    </div>
+    <div class="row" style="margin-top:10px; justify-content:space-between">
+      <span id="fileName" class="muted" style="font-size:13px"></span>
+      <button id="btnTemplate">Descargar plantilla</button>
+    </div>
+
+    <div id="mapBox" class="hidden" style="margin-top:16px">
+      <div class="grid">
+        <label class="f">Hoja<select id="sheetSel"></select></label>
+        <label class="f">Código de país<input id="cc" type="text" value="51"><span class="hint">Se antepone a números de 9 dígitos</span></label>
+      </div>
+      <div class="map" style="margin-top:12px">
+        <label class="f"><span class="req">Teléfono</span><select id="mPhone"></select></label>
+        <label class="f">Nombre (userName)<select id="mName"></select></label>
+        <label class="f">Cliente (customerName)<select id="mCustomer"></select></label>
+        <label class="f">Order ID<select id="mOrder"></select><span class="hint">Vacío = se genera uno único</span></label>
+      </div>
+      <div class="params">
+        <div style="font-size:13px; font-weight:500; margin-bottom:6px">Variables del script (params) <span class="muted" style="font-weight:400">· marca y renombra según la plantilla</span></div>
+        <div class="checks" id="paramList"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label class="chk"><input id="dedupe" type="checkbox" checked> Quitar teléfonos duplicados</label>
+      </div>
+
+      <div class="stats" id="stats"></div>
+      <div class="tablewrap"><table id="preview"></table></div>
+      <p class="muted" style="font-size:12.5px">Vista previa de las primeras 100 filas. Filas en rojo = teléfono inválido (no se envían).</p>
+    </div>
+  </section>
+
+  <!-- 4. Enviar -->
+  <section class="card">
+    <h2><span class="n">4</span>Crear campaña</h2>
+    <p class="sub">Las URLs de callback las fija el worker automáticamente.</p>
+    <div id="validation"></div>
+    <details><summary>Ver JSON que se enviará</summary><pre id="payloadPreview">—</pre></details>
+    <div class="actions" style="margin-top:14px">
+      <button id="btnCreate" class="primary big" disabled>Crear campaña</button>
+    </div>
+    <div id="result"></div>
+  </section>
+
+  <!-- 5. Historial -->
+  <section class="card">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0"><span class="n">5</span>Campañas creadas</h2>
+      <button id="btnHistory">Actualizar</button>
+    </div>
+    <div id="history" class="muted" style="margin-top:12px; font-size:13.5px">Prueba la conexión para ver el historial.</div>
+  </section>
+
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const LS = "nxCampaignCreator.v1";
+  const DAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+  const PERSIST = ["workerUrl", "sceneID", "strategyName", "zoneSecond", "maxCall", "agentGroup", "dispatchType",
+                   "ratioCallRate", "predictCallRate", "routeID", "maxRingTime", "other", "cc", "hourFrom", "hourTo"];
+
+  let wb = null, headers = [], rows = [], built = { orders: [], invalid: 0, dupes: 0 };
+
+  // ---------- storage ----------
+  const store = {
+    get() { try { return JSON.parse(localStorage.getItem(LS) || "{}"); } catch { return {}; } },
+    set(o) { try { localStorage.setItem(LS, JSON.stringify(o)); } catch {} },
+  };
+
+  // ---------- init ----------
+  DAYS.forEach((d, i) => {
+    const l = document.createElement("label");
+    l.className = "chk";
+    l.innerHTML = `<input type="checkbox" value="${i + 1}" checked> ${d}`;
+    $("days").appendChild(l);
+  });
+  for (let m = 0; m <= 48; m++) {
+    const h = String(Math.floor(m / 2)).padStart(2, "0") + ":" + (m % 2 ? "30" : "00");
+    if (m < 48) $("hourFrom").add(new Option(h === "24:00" ? "24:00" : h, m));
+    if (m > 0) $("hourTo").add(new Option(m === 48 ? "24:00" : h, m));
+  }
+  $("hourFrom").value = 16;  // 08:00
+  $("hourTo").value = 40;    // 20:00
+  $("userTaskID").value = newUserTaskID();
+
+  const saved = store.get();
+  PERSIST.forEach((k) => { if (saved[k] !== undefined && $(k)) $(k).value = saved[k]; });
+  if (saved.token) { $("token").value = saved.token; $("remember").checked = true; }
+  if (saved.days) document.querySelectorAll("#days input").forEach((c) => (c.checked = saved.days.includes(c.value)));
+
+  function persist() {
+    const o = {};
+    PERSIST.forEach((k) => (o[k] = $(k).value));
+    o.days = [...document.querySelectorAll("#days input:checked")].map((c) => c.value);
+    if ($("remember").checked) o.token = $("token").value;
+    store.set(o);
+  }
+
+  function newUserTaskID() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return `ut-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}-${Math.random().toString(36).slice(2, 7)}`;
+  }
+
+  // ---------- connection ----------
+  const base = () => $("workerUrl").value.trim().replace(/\/+$/, "");
+  const authH = () => ({ Authorization: "Bearer " + $("token").value.trim() });
+
+  function setConn(state, text) {
+    $("connPill").className = "pill " + (state || "");
+    $("connText").textContent = text;
+  }
+
+  $("btnTest").onclick = async () => {
+    persist();
+    setConn("", "Probando…");
+    try {
+      const r = await fetch(base() + "/stats", { headers: authH() });
+      if (r.status === 401) return setConn("err", "Token inválido");
+      if (!r.ok) return setConn("err", "Error " + r.status);
+      const d = await r.json();
+      setConn("ok", `Conectado · ${d.totals?.campaigns ?? 0} campañas`);
+      loadHistory();
+    } catch (e) {
+      setConn("err", "Sin respuesta (¿CORS / URL?)");
+    }
+  };
+
+  // ---------- campaign form ----------
+  $("startupType").onchange = () => $("startupAtWrap").classList.toggle("hidden", $("startupType").value !== "2");
+  $("useAicc").onchange = () => { $("aiccBox").classList.toggle("hidden", !$("useAicc").checked); refresh(); };
+
+  function hourLists() {
+    const from = +$("hourFrom").value, to = +$("hourTo").value;
+    const up = [], down = [];
+    for (let m = from; m < to; m++) (m % 2 === 0 ? up : down).push(Math.floor(m / 2));
+    return { up: up.join(","), down: down.join(",") };
+  }
+
+  // ---------- excel ----------
+  const drop = $("drop");
+  drop.onclick = () => $("file").click();
+  drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); };
+  $("file").onchange = (e) => e.target.files[0] && readFile(e.target.files[0]);
+
+  async function readFile(f) {
+    $("fileName").textContent = `${f.name} · ${(f.size / 1024).toFixed(1)} KB`;
+    const buf = await f.arrayBuffer();
+    // raw:false + dateNF para que los números largos (teléfonos) no salgan en notación científica
+    wb = XLSX.read(buf, { type: "array", raw: false });
+    $("sheetSel").innerHTML = "";
+    wb.SheetNames.forEach((n) => $("sheetSel").add(new Option(n, n)));
+    loadSheet();
+  }
+  $("sheetSel").onchange = loadSheet;
+
+  function loadSheet() {
+    const ws = wb.Sheets[$("sheetSel").value];
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" });
+    headers = (aoa[0] || []).map((h, i) => String(h).trim() || `Columna ${i + 1}`);
+    rows = aoa.slice(1).filter((r) => r.some((c) => String(c).trim() !== ""));
+    setupMapping();
+    $("mapBox").classList.remove("hidden");
+    refresh();
+  }
+
+  function guess(regex) { return headers.findIndex((h) => regex.test(h.toLowerCase())); }
+
+  function setupMapping() {
+    const opts = (sel, allowNone) => {
+      sel.innerHTML = "";
+      if (allowNone) sel.add(new Option("— ninguno —", "-1"));
+      headers.forEach((h, i) => sel.add(new Option(h, i)));
+    };
+    opts($("mPhone"), false); opts($("mName"), true); opts($("mCustomer"), true); opts($("mOrder"), true);
+    const ph = guess(/tel[eé]fono|phone|celular|movil|móvil|numero|número|userphone/);
+    $("mPhone").value = ph >= 0 ? ph : 0;
+    $("mName").value = guess(/^nombre|name|username/) ;
+    $("mCustomer").value = guess(/cliente nombre|customer|razon|razón/);
+    $("mOrder").value = guess(/order|orden/);
+    ["mName", "mCustomer", "mOrder"].forEach((k) => { if ($(k).value === "") $(k).value = "-1"; });
+    buildParamList();
+  }
+
+  function buildParamList() {
+    const used = new Set([$("mPhone").value, $("mName").value, $("mCustomer").value, $("mOrder").value].map(Number));
+    const prev = {};
+    document.querySelectorAll("#paramList .chk").forEach((l) => {
+      prev[l.dataset.idx] = { on: l.querySelector("input[type=checkbox]").checked, name: l.querySelector("input[type=text]").value };
+    });
+    $("paramList").innerHTML = "";
+    headers.forEach((h, i) => {
+      if (used.has(i)) return;
+      const p = prev[i] || { on: true, name: h };
+      const l = document.createElement("label");
+      l.className = "chk"; l.dataset.idx = i;
+      l.innerHTML = `<input type="checkbox" ${p.on ? "checked" : ""}> <input type="text" value="${esc(p.name)}" title="Nombre de variable en la plantilla">`;
+      $("paramList").appendChild(l);
+    });
+    if (!$("paramList").children.length) $("paramList").innerHTML = '<span class="muted" style="font-size:13px">No hay columnas adicionales.</span>';
+  }
+
+  ["mPhone", "mName", "mCustomer", "mOrder"].forEach((k) => ($(k).onchange = () => { buildParamList(); refresh(); }));
+  $("paramList").addEventListener("input", refresh);
+  $("paramList").addEventListener("change", refresh);
+  ["cc", "dedupe"].forEach((k) => $(k).addEventListener("input", refresh));
+  $("dedupe").onchange = refresh;
+
+  function normPhone(v) {
+    let d = String(v ?? "").replace(/\D/g, "");
+    const cc = $("cc").value.replace(/\D/g, "");
+    if (cc && d.length === 9) d = cc + d;
+    return d;
+  }
+  const validPhone = (d) => /^\d{10,15}$/.test(d);
+
+  function buildOrders() {
+    const iP = +$("mPhone").value, iN = +$("mName").value, iC = +$("mCustomer").value, iO = +$("mOrder").value;
+    const params = [...document.querySelectorAll("#paramList .chk")]
+      .filter((l) => l.querySelector("input[type=checkbox]").checked)
+      .map((l) => ({ idx: +l.dataset.idx, name: l.querySelector("input[type=text]").value.trim() }))
+      .filter((p) => p.name);
+    const seen = new Set();
+    const out = [], view = [];
+    let invalid = 0, dupes = 0;
+    rows.forEach((r) => {
+      const phone = normPhone(r[iP]);
+      const ok = validPhone(phone);
+      const dup = ok && $("dedupe").checked && seen.has(phone);
+      if (ok) seen.add(phone);
+      const o = {
+        orderID: iO >= 0 && String(r[iO]).trim() ? String(r[iO]).trim() : "",
+        userPhone: phone,
+        userName: iN >= 0 ? String(r[iN]).trim() : "",
+        customerName: iC >= 0 ? String(r[iC]).trim() : "",
+        other: "",
+        params: params.map((p) => ({ name: p.name, value: String(r[p.idx] ?? "").trim() })),
+      };
+      view.push({ o, ok, dup, raw: r[iP] });
+      if (!ok) invalid++;
+      else if (dup) dupes++;
+      else out.push(o);
+    });
+    return { orders: out, view, invalid, dupes, paramNames: params.map((p) => p.name) };
+  }
+
+  function renderPreview(b) {
+    $("stats").innerHTML = `
+      <div class="stat"><b>${rows.length}</b><span>Filas en el archivo</span></div>
+      <div class="stat ok"><b>${b.orders.length}</b><span>Se enviarán</span></div>
+      <div class="stat err"><b>${b.invalid}</b><span>Teléfono inválido</span></div>
+      <div class="stat warn"><b>${b.dupes}</b><span>Duplicados omitidos</span></div>`;
+    const cols = ["#", "Teléfono original", "userPhone", "userName", "customerName", ...b.paramNames, "Estado"];
+    const head = "<thead><tr>" + cols.map((c) => `<th>${esc(c)}</th>`).join("") + "</tr></thead>";
+    const body = b.view.slice(0, 100).map((v, i) => {
+      const st = !v.ok ? "Inválido" : v.dup ? "Duplicado" : "OK";
+      return `<tr class="${!v.ok ? "bad" : ""}"><td>${i + 1}</td><td class="mono">${esc(v.raw)}</td><td class="mono">${esc(v.o.userPhone)}</td><td>${esc(v.o.userName)}</td><td>${esc(v.o.customerName)}</td>${v.o.params.map((p) => `<td>${esc(p.value)}</td>`).join("")}<td>${st}</td></tr>`;
+    }).join("");
+    $("preview").innerHTML = head + "<tbody>" + body + "</tbody>";
+  }
+
+  // ---------- payload ----------
+  function buildPayload() {
+    const days = [...document.querySelectorAll("#days input:checked")].map((c) => c.value).join(",");
+    const { up, down } = hourLists();
+    const st = +$("startupType").value;
+    let startupAt = 1;
+    if (st === 2 && $("startupAt").value) startupAt = Math.floor(new Date($("startupAt").value).getTime() / 1000);
+
+    const tcs = {
+      strategyName: $("strategyName").value.trim(),
+      startupType: st,
+      startupAt,
+      zoneSecond: +$("zoneSecond").value,
+      dialAtWeekDay: days,
+      dialAtUpHour: up,
+      dialAtDownHour: down,
+      maxCall: +$("maxCall").value,
+      taskName: $("taskName").value.trim(),
+    };
+    if ($("maxRingTime").value) tcs.maxRingTime = +$("maxRingTime").value;
+    if ($("routeID").value.trim()) tcs.routeID = $("routeID").value.trim();
+    if ($("useAicc").checked) {
+      tcs.manualCallSetting = {
+        agentGroup: $("agentGroup").value.trim(),
+        dispatchType: +$("dispatchType").value,
+        ratioCallRate: +$("ratioCallRate").value,
+        predictCallRate: +$("predictCallRate").value,
+      };
+    }
+    return {
+      productID: "callbot",
+      userTaskID: $("userTaskID").value.trim(),
+      sceneID: $("sceneID").value.trim(),
+      taskCreateSetting: tcs,
+      funcFlag: {
+        taskKeep: $("taskKeep").checked,
+        roundRedial: $("roundRedial").checked,
+        wholeTTS: $("wholeTTS").checked,
+        smsFuncFlag: [],
+        smsEnable: false,
+        phoneEncrypt: $("phoneEncrypt").checked,
+      },
+      other: $("other").value,
+      callInfoList: { callList: built.orders },
+    };
+  }
+
+  function validate(p) {
+    const errs = [];
+    if (!$("token").value.trim()) errs.push("Falta el token.");
+    if (!p.taskCreateSetting.taskName) errs.push("Falta el nombre de la tarea.");
+    if (!p.sceneID) errs.push("Falta el Scene ID.");
+    if (!p.taskCreateSetting.strategyName) errs.push("Falta la estrategia de marcado.");
+    if (!p.userTaskID) errs.push("Falta el User Task ID.");
+    if (!p.taskCreateSetting.dialAtWeekDay) errs.push("Selecciona al menos un día.");
+    if (!p.taskCreateSetting.dialAtUpHour && !p.taskCreateSetting.dialAtDownHour) errs.push("El horario está vacío.");
+    if (p.taskCreateSetting.startupType === 2 && !$("startupAt").value) errs.push("Indica la fecha/hora de inicio programado.");
+    if (!(p.taskCreateSetting.maxCall > 0)) errs.push("La concurrencia debe ser mayor a 0.");
+    if ($("useAicc").checked && !p.taskCreateSetting.manualCallSetting.agentGroup) errs.push("Falta el grupo de agentes.");
+    if (!built.orders.length) errs.push("No hay contactos válidos para enviar.");
+    return errs;
+  }
+
+  function refresh() {
+    if (rows.length) {
+      built = buildOrders();
+      renderPreview(built);
+      $("ttsWarn").classList.toggle("hidden", !(built.paramNames.length && !$("wholeTTS").checked));
+    }
+    const p = buildPayload();
+    const errs = validate(p);
+    $("validation").innerHTML = errs.length
+      ? `<div class="alert warn">${errs.map(esc).join("<br>")}</div>`
+      : `<div class="alert ok">Listo para enviar ${built.orders.length} contacto(s).</div>`;
+    $("btnCreate").disabled = errs.length > 0;
+    const shown = JSON.parse(JSON.stringify(p));
+    if (shown.callInfoList.callList.length > 3) {
+      const n = shown.callInfoList.callList.length;
+      shown.callInfoList.callList = shown.callInfoList.callList.slice(0, 3);
+      shown.callInfoList.callList.push(`… y ${n - 3} contactos más`);
+    }
+    $("payloadPreview").textContent = JSON.stringify(shown, null, 2);
+  }
+  document.querySelectorAll("input, select").forEach((el) => {
+    if (el.id === "file") return;
+    el.addEventListener("input", refresh);
+    el.addEventListener("change", refresh);
+  });
+
+  // ---------- create ----------
+  $("btnCreate").onclick = async () => {
+    const p = buildPayload();
+    const errs = validate(p);
+    if (errs.length) return;
+    if (!confirm(`¿Crear la tarea "${p.taskCreateSetting.taskName}" con ${p.callInfoList.callList.length} contactos?`)) return;
+    persist();
+    const btn = $("btnCreate");
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creando…';
+    $("result").innerHTML = "";
+    try {
+      const r = await fetch(base() + "/api/campaigns", {
+        method: "POST",
+        headers: { ...authH(), "content-type": "application/json" },
+        body: JSON.stringify(p),
+      });
+      const d = await r.json().catch(() => ({}));
+      renderResult(r, d);
+      if (d.ok) { $("userTaskID").value = newUserTaskID(); loadHistory(); }
+    } catch (e) {
+      $("result").innerHTML = `<div class="alert err">No se pudo contactar al worker: ${esc(e.message)}</div>`;
+    } finally {
+      btn.innerHTML = "Crear campaña";
+      refresh();
+    }
+  };
+
+  function renderResult(r, d) {
+    const nx = d.nx_response || {};
+    const errList = Array.isArray(nx.errList) ? nx.errList : [];
+    let html = "";
+    if (r.status === 401) html = `<div class="alert err">Token inválido.</div>`;
+    else if (d.ok) html = `<div class="alert ok"><b>Campaña creada.</b> Task ID <span class="mono">${esc(d.taskID)}</span> · ${nx.successCount ?? "?"} de ${nx.totalCount ?? "?"} contactos importados.</div>`;
+    else html = `<div class="alert err"><b>NXCLOUD rechazó la solicitud.</b> retCode ${esc(nx.retCode ?? "—")} · ${esc(nx.retMsg || d.error || "Sin mensaje")}${nx.retCode === 4001 ? "<br>Demasiados contactos en una sola solicitud: divide el Excel en partes más pequeñas." : ""}</div>`;
+    if (errList.length) {
+      html += `<div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Teléfono</th><th>Error</th></tr></thead><tbody>${errList.map((e) => `<tr class="bad"><td class="mono">${esc(e.phone)}</td><td>${esc(e.errMsg)}</td></tr>`).join("")}</tbody></table></div>`;
+    }
+    html += `<details><summary>Respuesta completa</summary><pre>${esc(JSON.stringify(d, null, 2))}</pre></details>`;
+    $("result").innerHTML = html;
+  }
+
+  // ---------- history ----------
+  $("btnHistory").onclick = loadHistory;
+  async function loadHistory() {
+    try {
+      const r = await fetch(base() + "/api/campaigns?limit=20", { headers: authH() });
+      if (!r.ok) { $("history").textContent = r.status === 401 ? "Token inválido." : "Error " + r.status; return; }
+      const d = await r.json();
+      if (!d.items.length) { $("history").textContent = "Aún no hay campañas creadas desde aquí."; return; }
+      $("history").innerHTML = `<div class="tablewrap"><table><thead><tr><th>Fecha</th><th>Tarea</th><th>Task ID</th><th>Contactos</th><th>Resultado</th></tr></thead><tbody>${
+        d.items.map((c) => `<tr><td>${esc(new Date(c.created_at).toLocaleString("es-PE"))}</td><td>${esc(c.task_name || "")}</td><td class="mono">${esc(c.task_id || "—")}</td><td>${c.success_count ?? "?"} / ${c.order_count ?? "?"}</td><td>${c.ret_code === 0 ? '<span class="pill ok"><span class="dot"></span>OK</span>' : `<span class="pill err"><span class="dot"></span>${esc(c.ret_code ?? c.http_status)} ${esc(c.ret_msg || "")}</span>`}</td></tr>`).join("")
+      }</tbody></table></div>`;
+    } catch { $("history").textContent = "No se pudo cargar el historial."; }
+  }
+
+  // ---------- template ----------
+  $("btnTemplate").onclick = () => {
+    const data = [
+      ["telefono", "nombre", "COD_CLIENTE", "COD_TELEFONO", "CampaignID"],
+      ["939579468", "Bob", "CLIENTE001", "TELEFONO001", "CampaignID001"],
+      ["51939579468", "Susan", "CLIENTE002", "TELEFONO002", "CampaignID001"],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws["!cols"] = data[0].map(() => ({ wch: 16 }));
+    // teléfono como texto
+    for (let r = 1; r < data.length; r++) { const a = XLSX.utils.encode_cell({ r, c: 0 }); ws[a].t = "s"; }
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, ws, "contactos");
+    XLSX.writeFile(book, "plantilla_campana_callbot.xlsx");
+  };
+
+  function esc(s) { return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+  refresh();
+  if ($("token").value) $("btnTest").click();
+})();
+</script>
+</body>
+</html>
